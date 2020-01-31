@@ -3,7 +3,7 @@ from pynput.mouse import Button, Controller as MouseController
 from pynput.keyboard import Key, Controller as KeyboardController
 import uuid
 
-global server_sock, client_sock, CONST, mouse, keyboard, stored_key_list
+global server_sock, client_sock, CONST, mouse, keyboard
 
 
 def constant(f):
@@ -97,45 +97,100 @@ class SwitchException(Exception):
     pass
 
 
-def press_key_release(button):
-    keyboard.press(button)
-    keyboard.release(button)
+class Mouse:
+    def __init__(self):
+        self.__mouse = MouseController()
+        self.__is_dragging = False
+
+    def drag_or_release(self):
+        if self.__is_dragging:
+            self.__mouse.release(Button.left)
+        else:
+            self.__mouse.press(Button.left)
+        self.__is_dragging = not self.__is_dragging
+
+    def click(self, button, times):
+        self.__mouse.click(button, times)
+
+    def move(self, delta_x, delta_y):
+        self.__mouse.move(delta_x, delta_y)
+
+    def position(self, x, y):
+        self.__mouse.position(x, y)
+
+    def scroll(self, delta_x, delta_y):
+        self.__mouse.scroll(delta_x, delta_y)
 
 
-def press_key_store(button):
-    if button not in stored_key_list:
-        stored_key_list.append(button)
-        keyboard.press(button)
+class Keyboard:
+    def __init__(self):
+        self.__keyboard = KeyboardController()
+        self.__stored_key_list = []
 
+    def release_all(self):
+        for button in self.__stored_key_list:
+            self.__keyboard.release(button)
+        self.__stored_key_list.clear()
 
-def stored_key_release(button):
-    if button in stored_key_list:
-        stored_key_list.remove(button)
-        keyboard.release(button)
+    def press_key_release(self, button):
+        self.__keyboard.press(button)
+        self.__keyboard.release(button)
 
+    def press_key_store(self, button):
+        if button not in self.__stored_key_list:
+            self.__stored_key_list.append(button)
+            self.__keyboard.press(button)
 
-def release_all():
-    for button in stored_key_list:
-        keyboard.release(button)
-    stored_key_list.clear()
+    def stored_key_release(self, button):
+        if button in self.__stored_key_list:
+            self.__stored_key_list.remove(button)
+            self.__keyboard.release(button)
 
+    def switch_application(self, direction):
+        self.press_key_store(Key.alt)
+        if direction == CONST.MOVE_RIGHT:
+            self.stored_key_release(Key.shift)
+        else:
+            self.press_key_store(Key.shift)
+        self.press_key_release(Key.tab)
 
-def switch_application(direction):
-    press_key_store(Key.alt)
-    if direction == CONST.MOVE_RIGHT:
-        stored_key_release(Key.shift)
-    else:
-        press_key_store(Key.shift)
-    press_key_release(Key.tab)
+    def switch_tab(self, direction):
+        self.press_key_store(Key.ctrl)
+        if direction == CONST.MOVE_RIGHT:
+            self.stored_key_release(Key.shift)
+        else:
+            self.press_key_store(Key.shift)
+        self.press_key_release(Key.tab)
 
+    def return_to_desktop(self):
+        self.press_key_store(Key.cmd)
+        self.press_key_release('d')
+        self.stored_key_release(Key.cmd)
 
-def switch_tab(direction):
-    press_key_store(Key.ctrl)
-    if direction == CONST.MOVE_RIGHT:
-        stored_key_release(Key.shift)
-    else:
-        press_key_store(Key.shift)
-    press_key_release(Key.tab)
+    def enable_task_mode(self):
+        self.press_key_store(Key.cmd)
+        self.press_key_release(Key.tab)
+        self.stored_key_release(Key.cmd)
+
+    def undo(self):
+        self.press_key_store(Key.ctrl)
+        self.press_key_release('z')
+        self.stored_key_release(Key.ctrl)
+
+    def copy(self):
+        self.press_key_store(Key.ctrl)
+        self.press_key_release('c')
+        self.stored_key_release(Key.ctrl)
+
+    def paste(self):
+        self.press_key_store(Key.ctrl)
+        self.press_key_release('v')
+        self.stored_key_release(Key.ctrl)
+
+    def cut(self):
+        self.press_key_store(Key.ctrl)
+        self.press_key_release('x')
+        self.stored_key_release(Key.ctrl)
 
 
 def touch_pad_handle_message(message):
@@ -153,40 +208,28 @@ def touch_pad_handle_message(message):
     elif instruction == CONST.MOVE_CURSOR_ABSOLUTE:
         mouse.position(int(param_list[1]), int(param_list[2]))
     elif instruction == CONST.SELECT:
-        mouse.press(Button.left)
+        mouse.drag_or_release()
     elif instruction == CONST.SCROLL:
         mouse.scroll(int(param_list[1]), int(param_list[2]))
     elif instruction == CONST.UNDO:
-        keyboard.press(Key.ctrl)
-        press_key_release('z')
-        keyboard.release(Key.ctrl)
+        keyboard.undo()
     elif instruction == CONST.COPY:
-        keyboard.press(Key.ctrl)
-        press_key_release('c')
-        keyboard.release(Key.ctrl)
+        keyboard.copy()
     elif instruction == CONST.PASTE:
-        keyboard.press(Key.ctrl)
-        press_key_release('v')
-        keyboard.release(Key.ctrl)
+        keyboard.paste()
     elif instruction == CONST.CUT:
-        keyboard.press(Key.ctrl)
-        press_key_release('x')
-        keyboard.release(Key.ctrl)
+        keyboard.cut()
     elif instruction == CONST.RETURN_TO_DESKTOP:
-        keyboard.press(Key.cmd)
-        press_key_release('d')
-        keyboard.release(Key.cmd)
+        keyboard.return_to_desktop()
     elif instruction == CONST.ENABLE_TASK_MODE:
-        keyboard.press(Key.cmd)
-        press_key_release(Key.tab)
-        keyboard.release(Key.cmd)
+        keyboard.enable_task_mode()
     elif instruction == CONST.SWITCH_APPLICATION:
-        switch_application(int(param_list[1]))
+        keyboard.switch_application(int(param_list[1]))
     elif instruction == CONST.SWITCH_TAB:
-        switch_tab(param_list[1])
+        keyboard.switch_tab(param_list[1])
     # elif instruction == CONST.INPUT_CHARACTER:
     elif instruction == CONST.CANCEL_LAST_ACTION_FUNCTIONAL:
-        release_all()
+        keyboard.release_all()
 
     elif instruction == CONST.EXITING_TOUCH_PAD_FUNCTIONAL:
         raise SwitchException
@@ -238,9 +281,8 @@ def general_listen():
 
 if __name__ == '__main__':
     CONST = _Const()
-    mouse = MouseController()
-    keyboard = KeyboardController()
-    stored_key_list = []
+    mouse = Mouse()
+    keyboard = Keyboard()
 
     start_server()
     general_listen()
