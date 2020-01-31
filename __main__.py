@@ -139,8 +139,8 @@ def switch_tab(direction):
 
 
 def touch_pad_handle_message(message):
-    print(message)
     param_list = message.split(CONST.separator)
+    print(param_list)
     instruction = int(param_list[0])
     if instruction == CONST.CLICK:
         mouse.click(Button.left, 1)
@@ -199,7 +199,6 @@ def start_server():
     server_sock = BluetoothSocket(RFCOMM)
     server_sock.bind(("", PORT_ANY))
     server_sock.listen(1)
-    port = server_sock.getsockname()[1]
     server_uuid = "00001101-0000-1000-8000-00805F9B34FB"
     advertise_service(server_sock, "SampleServer",
                       service_id=server_uuid,
@@ -238,7 +237,6 @@ def general_listen():
 
 
 if __name__ == '__main__':
-    global CONST, mouse, stored_key_list
     CONST = _Const()
     mouse = MouseController()
     keyboard = KeyboardController()
@@ -247,8 +245,8 @@ if __name__ == '__main__':
     start_server()
     general_listen()
 
-    print("disconnected")
+    print("Disconnected")
 
     client_sock.close()
     server_sock.close()
-    print("all done")
+    print("Socket closed")
