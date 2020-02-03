@@ -1,7 +1,10 @@
-from bluetooth import *
-from pynput.mouse import Button, Controller as MouseController
-from pynput.keyboard import Key, Controller as KeyboardController
+import time
 import uuid
+import threading
+
+from bluetooth import *
+from pynput.keyboard import Key, Controller as KeyboardController
+from pynput.mouse import Button, Controller as MouseController
 
 global server_sock, client_sock, CONST, mouse, keyboard
 
@@ -18,7 +21,10 @@ def constant(f):
 
 class _Const(object):
     @constant
-    def separator(self): return '\\t'
+    def parameter_separator(self): return '\\t'
+
+    @constant
+    def line_separator(self): return '\\n'
 
     @constant
     def MOVE_LEFT(self): return 3
@@ -112,7 +118,8 @@ class Mouse:
     def click(self, button, times):
         self.__mouse.click(button, times)
 
-    def move(self, delta_x, delta_y):
+    def move(self, delta_x, delta_y, delay=0):
+        time.sleep(delay)
         self.__mouse.move(delta_x, delta_y)
 
     def position(self, x, y):
@@ -194,47 +201,53 @@ class Keyboard:
 
 
 def touch_pad_handle_message(message):
-    param_list = message.split(CONST.separator)
-    print(param_list)
-    instruction = int(param_list[0])
-    if instruction == CONST.CLICK:
-        mouse.click(Button.left, 1)
-    elif instruction == CONST.RIGHT_CLICK:
-        mouse.click(Button.right, 1)
-    elif instruction == CONST.DOUBLE_CLICK:
-        mouse.click(Button.left, 2)
-    elif instruction == CONST.MOVE_CURSOR_RELATIVE:
-        mouse.move(int(param_list[1]), int(param_list[2]))
-    elif instruction == CONST.MOVE_CURSOR_ABSOLUTE:
-        mouse.position(int(param_list[1]), int(param_list[2]))
-    elif instruction == CONST.SELECT:
-        mouse.drag_or_release()
-    elif instruction == CONST.SCROLL:
-        mouse.scroll(int(param_list[1]), int(param_list[2]))
-    elif instruction == CONST.UNDO:
-        keyboard.undo()
-    elif instruction == CONST.COPY:
-        keyboard.copy()
-    elif instruction == CONST.PASTE:
-        keyboard.paste()
-    elif instruction == CONST.CUT:
-        keyboard.cut()
-    elif instruction == CONST.RETURN_TO_DESKTOP:
-        keyboard.return_to_desktop()
-    elif instruction == CONST.ENABLE_TASK_MODE:
-        keyboard.enable_task_mode()
-    elif instruction == CONST.SWITCH_APPLICATION:
-        keyboard.switch_application(int(param_list[1]))
-    elif instruction == CONST.SWITCH_TAB:
-        keyboard.switch_tab(param_list[1])
-    # elif instruction == CONST.INPUT_CHARACTER:
-    elif instruction == CONST.CANCEL_LAST_ACTION_FUNCTIONAL:
-        keyboard.release_all()
+    separated_message = message.split(CONST.line_separator)
+    for ele in separated_message:
+        param_list = ele.split(CONST.parameter_separator)
+        print(param_list)
+        instruction = int(param_list[0])
+        if instruction == CONST.CLICK:
+            mouse.click(Button.left, 1)
+        elif instruction == CONST.RIGHT_CLICK:
+            mouse.click(Button.right, 1)
+        elif instruction == CONST.DOUBLE_CLICK:
+            mouse.click(Button.left, 2)
+        elif instruction == CONST.MOVE_CURSOR_RELATIVE:
+            delta_x = int(param_list[1]) / 2
+            delta_y = int(param_list[2]) / 2
+            mouse.move(delta_x, delta_y)
+            thread = threading.Thread(target=mouse.move, args=(delta_x, delta_y, 0.01))
+            thread.start()
+        elif instruction == CONST.MOVE_CURSOR_ABSOLUTE:
+            mouse.position(int(param_list[1]), int(param_list[2]))
+        elif instruction == CONST.SELECT:
+            mouse.drag_or_release()
+        elif instruction == CONST.SCROLL:
+            mouse.scroll(int(param_list[1]), int(param_list[2]))
+        elif instruction == CONST.UNDO:
+            keyboard.undo()
+        elif instruction == CONST.COPY:
+            keyboard.copy()
+        elif instruction == CONST.PASTE:
+            keyboard.paste()
+        elif instruction == CONST.CUT:
+            keyboard.cut()
+        elif instruction == CONST.RETURN_TO_DESKTOP:
+            keyboard.return_to_desktop()
+        elif instruction == CONST.ENABLE_TASK_MODE:
+            keyboard.enable_task_mode()
+        elif instruction == CONST.SWITCH_APPLICATION:
+            keyboard.switch_application(int(param_list[1]))
+        elif instruction == CONST.SWITCH_TAB:
+            keyboard.switch_tab(param_list[1])
+        # elif instruction == CONST.INPUT_CHARACTER:
+        elif instruction == CONST.CANCEL_LAST_ACTION_FUNCTIONAL:
+            keyboard.release_all()
 
-    elif instruction == CONST.EXITING_TOUCH_PAD_FUNCTIONAL:
-        raise SwitchException
-    else:
-        pass
+        elif instruction == CONST.EXITING_TOUCH_PAD_FUNCTIONAL:
+            raise SwitchException
+        else:
+            pass
 
 
 def start_server():
