@@ -105,11 +105,11 @@ class SwitchException(Exception):
 
 class Mouse:
     __scroll_thread = None
-    __tolerance = 10
-    __resistance = 1.5
-    __momentum_x = 0
-    __momentum_y = 0
-    __timeout = 0
+    __scroll_tolerance = 10
+    __scroll_resistance = 1.5
+    __scroll_momentum_x = 0
+    __scroll_momentum_y = 0
+    __scroll_timeout = 0
 
     def __init__(self):
         self.__mouse = MouseController()
@@ -140,31 +140,31 @@ class Mouse:
             print("new scroll thread created")
             self.__scroll_thread = threading.Thread(target=self.__scroll_with_inertia)
             self.__scroll_thread.start()
-        if delta_x * self.__momentum_x < 0:
-            self.__momentum_x = 0
+        if delta_x * self.__scroll_momentum_x < 0:
+            self.__scroll_momentum_x = 0
         else:
-            self.__momentum_x += delta_x
-        if delta_y * self.__momentum_y < 0:
-            self.__momentum_y = 0
+            self.__scroll_momentum_x += delta_x
+        if delta_y * self.__scroll_momentum_y < 0:
+            self.__scroll_momentum_y = 0
         else:
-            self.__momentum_y += delta_y
+            self.__scroll_momentum_y += delta_y
 
     def __scroll_with_inertia(self):
-        while self.__timeout < 3:
+        while self.__scroll_timeout < 3:
             time.sleep(0.1)
-            if self.__momentum_x == 0 and self.__momentum_y == 0:
-                self.__timeout += 0.1
+            if self.__scroll_momentum_x == 0 and self.__scroll_momentum_y == 0:
+                self.__scroll_timeout += 0.1
                 continue
-            self.__mouse.scroll(-self.__momentum_x, self.__momentum_y)
+            self.__mouse.scroll(-self.__scroll_momentum_x, self.__scroll_momentum_y)
 
-            self.__momentum_x /= self.__resistance
-            self.__momentum_y /= self.__resistance
-            if abs(self.__momentum_x) < self.__tolerance:
-                self.__momentum_x = 0
-            if abs(self.__momentum_y) < self.__tolerance:
-                self.__momentum_y = 0
+            self.__scroll_momentum_x /= self.__scroll_resistance
+            self.__scroll_momentum_y /= self.__scroll_resistance
+            if abs(self.__scroll_momentum_x) < self.__scroll_tolerance:
+                self.__scroll_momentum_x = 0
+            if abs(self.__scroll_momentum_y) < self.__scroll_tolerance:
+                self.__scroll_momentum_y = 0
         self.__scroll_thread = None
-        self.__timeout = 0
+        self.__scroll_timeout = 0
         print("new scroll thread terminated")
 
 
@@ -258,7 +258,7 @@ def touch_pad_handle_message(message):
         elif instruction == CONST.SELECT:
             mouse.drag_or_release()
         elif instruction == CONST.SCROLL:
-            mouse.scroll(int(param_list[1]) * 5, int(param_list[2]) * 5)
+            mouse.scroll(int(param_list[1]) * 10, int(param_list[2]) * 5)
         elif instruction == CONST.UNDO:
             keyboard.undo()
         elif instruction == CONST.COPY:
