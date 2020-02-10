@@ -104,6 +104,13 @@ class SwitchException(Exception):
 
 
 class Mouse:
+    __scroll_thread = None
+    __tolerance = 10
+    __resistance = 1.5
+    __momentum_x = 0
+    __momentum_y = 0
+    __timeout = 0
+
     def __init__(self):
         self.__mouse = MouseController()
         self.__is_dragging = False
@@ -119,6 +126,9 @@ class Mouse:
         self.__mouse.click(button, times)
 
     def move(self, delta_x, delta_y, delay=0):
+        if delay == 0:
+            thread = threading.Thread(target=mouse.move, args=(delta_x, delta_y, 0.05))
+            thread.start()
         time.sleep(delay)
         self.__mouse.move(delta_x, delta_y)
 
@@ -126,7 +136,36 @@ class Mouse:
         self.__mouse.position(x, y)
 
     def scroll(self, delta_x, delta_y):
-        self.__mouse.scroll(delta_x, delta_y)
+        if self.__scroll_thread is None:
+            print("new scroll thread created")
+            self.__scroll_thread = threading.Thread(target=self.__scroll_with_inertia)
+            self.__scroll_thread.start()
+        if delta_x * self.__momentum_x < 0:
+            self.__momentum_x = 0
+        else:
+            self.__momentum_x += delta_x
+        if delta_y * self.__momentum_y < 0:
+            self.__momentum_y = 0
+        else:
+            self.__momentum_y += delta_y
+
+    def __scroll_with_inertia(self):
+        while self.__timeout < 3:
+            time.sleep(0.1)
+            if self.__momentum_x == 0 and self.__momentum_y == 0:
+                self.__timeout += 0.1
+                continue
+            self.__mouse.scroll(-self.__momentum_x, self.__momentum_y)
+
+            self.__momentum_x /= self.__resistance
+            self.__momentum_y /= self.__resistance
+            if abs(self.__momentum_x) < self.__tolerance:
+                self.__momentum_x = 0
+            if abs(self.__momentum_y) < self.__tolerance:
+                self.__momentum_y = 0
+        self.__scroll_thread = None
+        self.__timeout = 0
+        print("new scroll thread terminated")
 
 
 class Keyboard:
@@ -213,17 +252,13 @@ def touch_pad_handle_message(message):
         elif instruction == CONST.DOUBLE_CLICK:
             mouse.click(Button.left, 2)
         elif instruction == CONST.MOVE_CURSOR_RELATIVE:
-            delta_x = int(param_list[1]) / 2
-            delta_y = int(param_list[2]) / 2
-            mouse.move(delta_x, delta_y)
-            thread = threading.Thread(target=mouse.move, args=(delta_x, delta_y, 0.01))
-            thread.start()
+            mouse.move(int(param_list[1]), int(param_list[2]))
         elif instruction == CONST.MOVE_CURSOR_ABSOLUTE:
             mouse.position(int(param_list[1]), int(param_list[2]))
         elif instruction == CONST.SELECT:
             mouse.drag_or_release()
         elif instruction == CONST.SCROLL:
-            mouse.scroll(int(param_list[1]), int(param_list[2]))
+            mouse.scroll(int(param_list[1]) * 5, int(param_list[2]) * 5)
         elif instruction == CONST.UNDO:
             keyboard.undo()
         elif instruction == CONST.COPY:
