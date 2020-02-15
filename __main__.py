@@ -155,7 +155,8 @@ class Mouse:
             if self.__scroll_momentum_x == 0 and self.__scroll_momentum_y == 0:
                 self.__scroll_timeout += 0.1
                 continue
-            self.__mouse.scroll(-self.__scroll_momentum_x, self.__scroll_momentum_y)
+            threading.Thread(target=self.__scroll_with_delay,
+                             args=(self.__scroll_momentum_x, -self.__scroll_momentum_y)).start()
 
             self.__scroll_momentum_x /= self.__scroll_resistance
             self.__scroll_momentum_y /= self.__scroll_resistance
@@ -166,6 +167,14 @@ class Mouse:
         self.__scroll_thread = None
         self.__scroll_timeout = 0
         print("new scroll thread terminated")
+
+    def __scroll_with_delay(self, momentum_x, momentum_y):
+        times = 10
+        delay = 0.1 / times
+        print(delay, momentum_x / times, momentum_y / times)
+        for _ in range(times):
+            self.__mouse.scroll(momentum_x / times, momentum_y / times)
+            time.sleep(delay)
 
 
 class Keyboard:
@@ -258,7 +267,7 @@ def touch_pad_handle_message(message):
         elif instruction == CONST.SELECT:
             mouse.drag_or_release()
         elif instruction == CONST.SCROLL:
-            mouse.scroll(int(param_list[1]) * 10, int(param_list[2]) * 5)
+            mouse.scroll(int(param_list[1]) * 20, int(param_list[2]) * 10)
         elif instruction == CONST.UNDO:
             keyboard.undo()
         elif instruction == CONST.COPY:
